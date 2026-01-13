@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Business Card Viewer</title>
+    <!-- AR.js libraries -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+        }
+        
+        #ar-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: none;
+        }
+        
+        .permission-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a2a6c, #2a3c7f, #4a5f9a);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .permission-screen.hidden {
+            display: none;
+        }
+        
+        .permission-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #ff9966;
+        }
+        
+        .permission-title {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: white;
+        }
+        
+        .permission-text {
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            max-width: 500px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .permission-steps {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            max-width: 500px;
+            text-align: left;
+        }
+        
+        .permission-steps ol {
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .permission-steps li {
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        
+        .permission-button {
+            background: linear-gradient(to right, #ff9966, #ff5e62);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 94, 98, 0.4);
+        }
+        
+        .permission-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 94, 98, 0.6);
+        }
+        
+        .permission-button:active {
+            transform: translateY(1px);
+        }
+        
+        .permission-button.secondary {
+            background: linear-gradient(to right, #36d1dc, #5b86e5);
+            box-shadow: 0 5px 15px rgba(91, 134, 229, 0.4);
+        }
+        
+        .error-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+            padding: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        .error-screen.visible {
+            display: flex;
+        }
+        
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            padding: 0 20px;
+            display: none;
+        }
+        
+        .instruction-box {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .instruction-box h3 {
+            margin-bottom: 10px;
+            color: #ff9966;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .instruction-box ol {
+            text-align: left;
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .instruction-box li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            background: linear-gradient(to right, #ff9966, #ff5e62);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        button.secondary {
+            background: linear-gradient(to right, #36d1dc, #5b86e5);
+        }
+        
+        .status {
+            position: fixed;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+            padding: 0 20px;
+            display: none;
+        }
+        
+        .status.visible {
+            display: block;
+        }
+        
+        .status-message {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            max-width: 500px;
+        }
+        
+        .error {
+            background: rgba(231, 76, 60, 0.9);
+        }
+        
+        .success {
+            background: rgba(46, 204, 113, 0.9);
+        }
+        
+        .content-info {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+        
+        .content-info.visible {
+            display: block;
+        }
+        
+        .content-info h3 {
+            color: #ff9966;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-item {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            min-width: 70px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1002;
+            display: none;
+        }
+        
+        .loading.visible {
+            display: block;
+        }
+        
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ff9966;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .permission-title {
+                font-size: 1.5rem;
+            }
+            
+            .permission-text {
+                font-size: 1rem;
+            }
+            
+            .instruction-box {
+                margin: 0 15px;
+            }
+            
+            .content-info {
+                position: relative;
+                top: auto;
+                right: auto;
+                max-width: 90%;
+                margin: 20px auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Camera Permission Screen -->
+    <div class="permission-screen" id="permissionScreen">
+        <div class="permission-icon">
+            <i class="fas fa-camera"></i>
+        </div>
+        <h1 class="permission-title">Camera Access Required</h1>
+        <p class="permission-text">
+            To view the AR business card, we need access to your camera. This allows us to display the 3D model in your environment.
+        </p>
+        
+        <div class="permission-steps">
+            <h3>When Chrome asks for permission:</h3>
+            <ol>
+                <li>Look for the camera permission popup in your browser's address bar</li>
+                <li>Click <strong>"Allow"</strong> to grant camera access</li>
+                <li>If you accidentally click "Block", refresh the page and try again</li>
+                <li>On mobile, you may need to enable camera access in your device settings</li>
+            </ol>
+        </div>
+        
+        <button class="permission-button" id="startCamera">
+            <i class="fas fa-camera"></i> Start Camera
+        </button>
+        
+        <button class="permission-button secondary" id="viewWithoutAR">
+            <i class="fas fa-eye"></i> View Without Camera
+        </button>
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div class="loading" id="loadingIndicator">
+        <div class="loader"></div>
+    </div>
+    
+    <!-- Error Screen -->
+    <div class="error-screen" id="errorScreen">
+        <div class="error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h1>Camera Access Denied</h1>
+        <p id="errorMessage">
+            We cannot access your camera. Here's how to fix this:
+        </p>
+        
+        <div class="permission-steps">
+            <h3>To enable camera access:</h3>
+            <ol>
+                <li><strong>Chrome Desktop:</strong> Click the camera icon (🚫 or 📷) in the address bar and select "Allow"</li>
+                <li><strong>Chrome Mobile:</strong> Go to Settings → Site Settings → Camera and allow access</li>
+                <li><strong>General Fix:</strong> Refresh this page and click "Allow" when prompted</li>
+                <li><strong>Alternative:</strong> Try a different browser like Firefox or Safari</li>
+            </ol>
+        </div>
+        
+        <button class="permission-button" id="retryButton">
+            <i class="fas fa-redo"></i> Try Again
+        </button>
+        
+        <button class="permission-button secondary" id="viewWithoutCamera">
+            <i class="fas fa-eye"></i> View Without Camera
+        </button>
+    </div>
+    
+    <!-- Status Message -->
+    <div class="status" id="statusContainer">
+        <div class="status-message" id="statusMessage">Loading AR Experience</div>
+    </div>
+    
+    <!-- Content Information -->
+    <div class="content-info" id="contentInfo">
+        <h3><i class="fas fa-id-card"></i> Business Card</h3>
+        <div class="info-item">
+            <span class="info-label">Name:</span>
+            <span id="infoName">Alex Johnson</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Title:</span>
+            <span id="infoTitle">Senior Developer</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Company:</span>
+            <span id="infoCompany">Tech Innovations Inc.</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Email:</span>
+            <span id="infoEmail">alex@techinnovations.com</span>
+        </div>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="instructions" id="instructions">
+        <div class="instruction-box">
+            <h3><i class="fas fa-info-circle"></i> How to View AR Content</h3>
+            <ol>
+                <li>Point your camera at a flat surface</li>
+                <li>Move your device slowly to detect surfaces</li>
+                <li>Tap on the detected surface to place the 3D model</li>
+                <li>Move around to view the model from different angles</li>
+            </ol>
+            <div class="controls">
+                <button id="toggleInfo">
+                    <i class="fas fa-info-circle"></i> Toggle Info
+                </button>
+                <button id="recenter" class="secondary">
+                    <i class="fas fa-crosshairs"></i> Recenter
+                </button>
+                <button id="toggleCamera" class="secondary">
+                    <i class="fas fa-camera"></i> Toggle Camera
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AR Container -->
+    <div id="ar-container">
+        <!-- AR Scene will be inserted here -->
+    </div>
+    
+    <!-- Font Awesome for icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    
+    <script>
+        // DOM Elements
+        const permissionScreen = document.getElementById('permissionScreen');
+        const errorScreen = document.getElementById('errorScreen');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const statusContainer = document.getElementById('statusContainer');
+        const statusMessage = document.getElementById('statusMessage');
+        const contentInfo = document.getElementById('contentInfo');
+        const instructions = document.getElementById('instructions');
+        const arContainer = document.getElementById('ar-container');
+        
+        // Buttons
+        const startCameraBtn = document.getElementById('startCamera');
+        const viewWithoutARBtn = document.getElementById('viewWithoutAR');
+        const retryButton = document.getElementById('retryButton');
+        const viewWithoutCameraBtn = document.getElementById('viewWithoutCamera');
+        const toggleInfoBtn = document.getElementById('toggleInfo');
+        const recenterBtn = document.getElementById('recenter');
+        const toggleCameraBtn = document.getElementById('toggleCamera');
+        
+        // Business card data
+        const businessCard = {
+            name: "Alex Johnson",
+            title: "Senior Developer",
+            company: "Tech Innovations Inc.",
+            email: "alex.johnson@techinnovations.com",
+            phone: "+1 (555) 123-4567",
+            website: "www.techinnovations.com",
+            modelUrl: "https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb"
+        };
+        
+        // Variables
+        let arScene = null;
+        let cameraStream = null;
+        
+        // Update status message
+        function updateStatus(message, type = '') {
+            statusMessage.textContent = message;
+            statusMessage.className = 'status-message';
+            if (type) {
+                statusMessage.classList.add(type);
+            }
+            statusContainer.classList.add('visible');
+            
+            // Auto-hide success messages after 3 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusContainer.classList.remove('visible');
+                }, 3000);
+            }
+        }
+        
+        // Show loading indicator
+        function showLoading() {
+            loadingIndicator.classList.add('visible');
+        }
+        
+        // Hide loading indicator
+        function hideLoading() {
+            loadingIndicator.classList.remove('visible');
+        }
+        
+        // Update content info
+        function updateContentInfo() {
+            document.getElementById('infoName').textContent = businessCard.name;
+            document.getElementById('infoTitle').textContent = businessCard.title;
+            document.getElementById('infoCompany').textContent = businessCard.company;
+            document.getElementById('infoEmail').textContent = businessCard.email;
+        }
+        
+        // Test camera access
+        async function testCameraAccess() {
+            try {
+                showLoading();
+                updateStatus("Testing camera access...");
+                
+                // Try to get camera access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: { ideal: 'environment' }
+                    } 
+                });
+                
+                // Success - stop the test stream
+                stream.getTracks().forEach(track => track.stop());
+                
+                hideLoading();
+                return true;
+            } catch (error) {
+                hideLoading();
+                console.error('Camera test failed:', error);
+                return false;
+            }
+        }
+        
+        // Create AR scene
+        function createARScene() {
+            // Clear any existing scene
+            arContainer.innerHTML = '';
+            
+            // Create the scene element
+            const scene = document.createElement('a-scene');
+            scene.setAttribute('embedded', '');
+            scene.setAttribute('vr-mode-ui', 'enabled: false');
+            scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; precision: high;');
+            scene.setAttribute('arjs', 'sourceType: webcam; videoTexture: true; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
+            
+            // Create marker for barcode detection (fallback)
+            const marker = document.createElement('a-marker');
+            marker.setAttribute('type', 'barcode');
+            marker.setAttribute('value', '25'); // Random barcode value
+            
+            // Create the 3D model
+            const model = document.createElement('a-entity');
+            model.setAttribute('gltf-model', businessCard.modelUrl);
+            model.setAttribute('scale', '0.8 0.8 0.8');
+            model.setAttribute('position', '0 0.5 0');
+            model.setAttribute('rotation', '0 0 0');
+            model.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear');
+            model.setAttribute('id', 'business-card-model');
+            
+            // Add click event to model
+            model.setAttribute('cursor-listener', '');
+            
+            // Add model to marker
+            marker.appendChild(model);
+            
+            // Add marker to scene
+            scene.appendChild(marker);
+            
+            // Add cursor for interaction
+            const cursor = document.createElement('a-cursor');
+            cursor.setAttribute('rayOrigin', 'mouse');
+            cursor.setAttribute('id', 'cursor');
+            scene.appendChild(cursor);
+            
+            // Add camera
+            const camera = document.createElement('a-entity');
+            camera.setAttribute('camera', '');
+            camera.setAttribute('position', '0 0 0');
+            scene.appendChild(camera);
+            
+            // Add lights
+            const light1 = document.createElement('a-entity');
+            light1.setAttribute('light', 'type: directional; color: #FFF; intensity: 0.6');
+            light1.setAttribute('position', '-1 2 1');
+            scene.appendChild(light1);
+            
+            const light2 = document.createElement('a-entity');
+            light2.setAttribute('light', 'type: ambient; color: #FFF; intensity: 0.4');
+            scene.appendChild(light2);
+            
+            // Insert scene into container
+            arContainer.appendChild(scene);
+            
+            return scene;
+        }
+        
+        // Start AR experience
+        async function startAR() {
+            try {
+                showLoading();
+                updateStatus("Starting AR experience...");
+                
+                // Hide permission screen
+                permissionScreen.classList.add('hidden');
+                
+                // First test camera access
+                const hasCameraAccess = await testCameraAccess();
+                
+                if (!hasCameraAccess) {
+                    throw new Error('Camera access denied or not available');
+                }
+                
+                updateStatus("Camera access granted. Loading AR scene...");
+                
+                // Create AR scene
+                arScene = createARScene();
+                
+                // Update content info
+                updateContentInfo();
+                
+                // When scene is loaded
+                arScene.addEventListener('loaded', function() {
+                    hideLoading();
+                    
+                    // Show AR container
+                    arContainer.style.display = 'block';
+                    
+                    // Show instructions
+                    instructions.style.display = 'block';
+                    contentInfo.classList.add('visible');
+                    
+                    updateStatus("AR scene loaded! Point camera at a flat surface.", "success");
+                    
+                    // Auto-hide instructions after 10 seconds
+                    setTimeout(() => {
+                        if (instructions.style.display === 'block') {
+                            instructions.style.opacity = '0.5';
+                        }
+                    }, 10000);
+                });
+                
+                // Handle scene errors
+                arScene.addEventListener('error', function(error) {
+                    console.error('AR scene error:', error);
+                    hideLoading();
+                    showError('Failed to load AR scene. Please try again.');
+                });
+                
+                // Handle model loading errors
+                arScene.addEventListener('model-error', function() {
+                    updateStatus("Error loading 3D model. Please check your connection.", "error");
+                });
+                
+            } catch (error) {
+                console.error('AR initialization error:', error);
+                hideLoading();
+                showError(error.message);
+            }
+        }
+        
+        // Show error screen
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            errorScreen.classList.add('visible');
+            permissionScreen.classList.add('hidden');
+        }
+        
+        // View without AR (fallback)
+        function viewWithoutAR() {
+            permissionScreen.classList.add('hidden');
+            errorScreen.classList.remove('visible');
+            
+            // Create a simple 3D viewer without camera
+            arContainer.innerHTML = `
+                <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#000;color:white;">
+                    <div style="text-align:center;padding:20px;">
+                        <i class="fas fa-vr-cardboard" style="font-size:4rem;color:#ff9966;margin-bottom:20px;"></i>
+                        <h2 style="margin-bottom:15px;">3D Model Viewer</h2>
+                        <p style="margin-bottom:25px;max-width:500px;line-height:1.6;">
+                            Camera access is required for AR mode. Here's a static view of the 3D business card model.
+                        </p>
+                        <div style="margin:30px 0;">
+                            <iframe 
+                                src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
+                                style="width:300px;height:300px;border:none;"
+                                title="3D Business Card Model">
+                            </iframe>
+                            <p style="margin-top:10px;font-size:0.9rem;opacity:0.8;">
+                                Note: Model viewer requires a secure HTTPS connection
+                            </p>
+                        </div>
+                        <button onclick="location.reload()" style="background:#ff9966;color:white;border:none;padding:12px 25px;border-radius:50px;cursor:pointer;font-weight:600;">
+                            <i class="fas fa-redo"></i> Try AR Mode Again
+                        </button>
+                    </div>
+                </div>
+            `;
+            arContainer.style.display = 'block';
+            
+            // Show business card info
+            updateContentInfo();
+            contentInfo.classList.add('visible');
+            contentInfo.style.position = 'absolute';
+            contentInfo.style.top = '20px';
+            contentInfo.style.right = '20px';
+        }
+        
+        // Toggle camera on/off
+        function toggleCamera() {
+            if (arScene) {
+                const camera = arScene.querySelector('[camera]');
+                if (camera) {
+                    const isActive = camera.getAttribute('camera').active;
+                    camera.setAttribute('camera', 'active', !isActive);
+                    updateStatus(isActive ? "Camera paused" : "Camera resumed", "success");
+                }
+            }
+        }
+        
+        // Event Listeners
+        startCameraBtn.addEventListener('click', startAR);
+        viewWithoutARBtn.addEventListener('click', viewWithoutAR);
+        retryButton.addEventListener('click', startAR);
+        viewWithoutCameraBtn.addEventListener('click', viewWithoutAR);
+        
+        toggleInfoBtn.addEventListener('click', function() {
+            contentInfo.classList.toggle('visible');
+        });
+        
+        recenterBtn.addEventListener('click', function() {
+            if (arScene) {
+                const marker = arScene.querySelector('a-marker');
+                if (marker) {
+                    marker.setAttribute('position', '0 0 0');
+                    updateStatus("Model recentered", "success");
+                }
+            }
+        });
+        
+        toggleCameraBtn.addEventListener('click', toggleCamera);
+        
+        // Handle visibility change
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && arScene) {
+                arScene.pause();
+            } else if (arScene) {
+                arScene.play();
+            }
+        });
+        
+        // Check for browser support on load
+        window.addEventListener('load', function() {
+            // Check if browser supports required features
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showError("Your browser doesn't support camera access. Please try Chrome, Firefox, or Safari.");
+                return;
+            }
+            
+            // Check if we're on HTTPS (required for camera access)
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                showError("Camera access requires HTTPS. Please open this page over a secure connection.");
+                return;
+            }
+            
+            // Show permission screen by default
+            permissionScreen.classList.remove('hidden');
+        });
+        
+        // Handle mobile device orientation
+        window.addEventListener('deviceorientation', function() {
+            // Helps with mobile AR stability
+        }, true);
+    </script>
+</body>
+</html>
