@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QRAnchor SDK – Step 1</title>
+</head>
+<body>
+
+<script type="module">
+  import { startQRTracking } from "index.js";
+
+  startQRTracking((qr) => {
+    console.log("QR FOUND");
+    console.log("ID:", qr.id);
+    console.log("Corners:", qr.corners);
+  });
+</script>
+
+</body>
+</html>
