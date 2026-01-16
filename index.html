@@ -3,190 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web AR Visiting Card</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <title>AR 3D Model Viewer</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     <style>
-        #scanner-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        #video {
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .qr-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        #qrcode {
+            display: inline-block;
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .instructions {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            margin-top: 15px;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .ar-button {
+            display: block;
             width: 100%;
-            height: 100%;
-            object-fit: cover;
+            padding: 15px;
+            background: #4CAF50;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: background 0.3s;
         }
-        #ar-view {
-            display: none;
-            position: absolute;
+        
+        .ar-button:hover {
+            background: #45a049;
+        }
+        
+        .model-info {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .ar-viewport {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            z-index: 1000;
+            display: none;
         }
-        .scan-box {
+        
+        .close-ar {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 250px;
-            height: 250px;
-            border: 3px solid #00ff00;
-            border-radius: 10px;
-            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.7);
-        }
-        .visiting-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            max-width: 300px;
-            margin: 20px auto;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1001;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-    <!-- QR Scanner View -->
-    <div id="scanner-container">
-        <video id="video"></video>
-        <div class="scan-box"></div>
-        <canvas id="canvas" style="display: none;"></canvas>
+    <div class="container">
+        <div class="header">
+            <h1>AR 3D Experience</h1>
+            <p>Scan the QR code to view the 3D model in Augmented Reality</p>
+        </div>
+        
+        <div class="qr-container">
+            <h2>QR Code for AR Experience</h2>
+            <div id="qrcode"></div>
+            <p>Scan this QR code with your mobile device's camera</p>
+        </div>
+        
+        <div class="instructions">
+            <h2>How to Use:</h2>
+            <ol>
+                <li>Open your mobile device's camera app</li>
+                <li>Point the camera at the QR code above</li>
+                <li>Tap the notification/link that appears</li>
+                <li>Allow camera access when prompted</li>
+                <li>Point your camera at a flat surface to place the 3D model</li>
+                <li>Move around to view the model from different angles</li>
+            </ol>
+        </div>
+        
+        <a href="#" class="ar-button" onclick="openARViewer()">Open AR Viewer Directly</a>
+        
+        <div class="model-info">
+            <h2>3D Model Information</h2>
+            <p><strong>Model URL:</strong> <span id="model-url">https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb</span></p>
+            <p><strong>Format:</strong> GLB (Binary GL Transmission Format)</p>
+            <p><strong>Features:</strong> Full 3D model with textures, materials, and animations</p>
+        </div>
     </div>
 
-    <!-- AR View (A-Frame) -->
-    <div id="ar-view">
-        <a-scene embedded>
-            <a-entity id="visiting-card-3d" position="0 0 -2">
-                <a-box position="0 0 0" width="1" height="0.6" depth="0.02" color="#FFFFFF">
-                    <a-text id="name-text" value="Name" position="0 0.2 0.02" align="center" color="#000000" width="2"></a-text>
-                    <a-text id="title-text" value="Title" position="0 0 0.02" align="center" color="#000000" width="2"></a-text>
-                    <a-text id="phone-text" value="Phone" position="-0.4 -0.2 0.02" align="center" color="#000000" width="0.8"></a-text>
-                    <a-text id="email-text" value="Email" position="0.4 -0.2 0.02" align="center" color="#000000" width="0.8"></a-text>
-                </a-box>
+    <!-- AR Viewer (hidden by default) -->
+    <div id="arViewer" class="ar-viewport">
+        <button class="close-ar" onclick="closeARViewer()">Close AR</button>
+        <a-scene embedded arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+            <!-- Marker-based AR -->
+            <a-marker type="barcode" value="69">
+                <a-entity
+                    gltf-model="https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb"
+                    scale="0.5 0.5 0.5"
+                    position="0 0 0"
+                    animation-mixer
+                    look-at="[gps-camera]">
+                </a-entity>
+            </a-marker>
+            
+            <!-- Location-based AR fallback -->
+            <a-entity id="model" 
+                gltf-model="https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb"
+                gps-entity-place="latitude: 0; longitude: 0;"
+                scale="0.5 0.5 0.5"
+                animation-mixer>
             </a-entity>
-            <a-camera position="0 0 0"></a-camera>
+            
+            <a-camera gps-camera rotation-reader></a-camera>
         </a-scene>
     </div>
 
+    <!-- QR Code Generator Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    
     <script>
-        // DOM Elements
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const scannerContainer = document.getElementById('scanner-container');
-        const arView = document.getElementById('ar-view');
-        const ctx = canvas.getContext('2d');
-
-        // Start camera
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment', // Use back camera
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                });
-                video.srcObject = stream;
-                video.play();
-                
-                // Start QR scanning
-                requestAnimationFrame(scanQR);
-            } catch (err) {
-                console.error('Camera error:', err);
-                alert('Camera access is required for this feature.');
+        // Generate QR Code
+        const modelUrl = "https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb";
+        const currentUrl = window.location.href;
+        
+        // Use current page URL for QR code (or direct AR link)
+        const qrData = currentUrl.includes('?ar=true') ? currentUrl : currentUrl + '?ar=true';
+        
+        QRCode.toCanvas(document.getElementById('qrcode'), qrData, {
+            width: 200,
+            height: 200,
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
             }
+        }, function (error) {
+            if (error) console.error(error);
+        });
+        
+        // Check if AR mode should open automatically
+        if (window.location.search.includes('ar=true')) {
+            openARViewer();
         }
-
-        // QR Scanning function
-        function scanQR() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                // Draw video frame to canvas
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // Get image data
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                
-                // Scan for QR code
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: 'dontInvert',
-                });
-                
-                if (code) {
-                    // QR Code detected
-                    console.log('QR Data:', code.data);
-                    processQRData(code.data);
-                    
-                    // Draw bounding box
-                    drawQRBox(code.location);
-                }
-            }
-            
-            requestAnimationFrame(scanQR);
+        
+        function openARViewer() {
+            document.getElementById('arViewer').style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
-
-        function drawQRBox(location) {
-            ctx.beginPath();
-            ctx.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
-            ctx.lineTo(location.topRightCorner.x, location.topRightCorner.y);
-            ctx.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
-            ctx.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
-            ctx.closePath();
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#00ff00";
-            ctx.stroke();
+        
+        function closeARViewer() {
+            document.getElementById('arViewer').style.display = 'none';
+            document.body.style.overflow = 'auto';
         }
-
-        function processQRData(qrData) {
-            try {
-                // Parse QR data (format: name|title|company|phone|email|website)
-                const data = qrData.split('|');
-                
-                if (data.length >= 5) {
-                    // Switch to AR view
-                    scannerContainer.style.display = 'none';
-                    arView.style.display = 'block';
-                    
-                    // Update AR content
-                    updateARContent(data);
-                    
-                    // Stop camera to save battery
-                    const stream = video.srcObject;
-                    const tracks = stream.getTracks();
-                    tracks.forEach(track => track.stop());
-                }
-            } catch (error) {
-                console.error('Error processing QR:', error);
-            }
+        
+        // Handle mobile detection
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         }
-
-        function updateARContent(data) {
-            // Update A-Frame elements
-            document.getElementById('name-text').setAttribute('value', data[0]);
-            document.getElementById('title-text').setAttribute('value', `${data[1]} at ${data[2]}`);
-            document.getElementById('phone-text').setAttribute('value', `📞 ${data[3]}`);
-            document.getElementById('email-text').setAttribute('value', `✉️ ${data[4]}`);
-            
-            // Add clickable links
-            const phoneText = document.getElementById('phone-text');
-            phoneText.setAttribute('class', 'clickable');
-            phoneText.addEventListener('click', () => {
-                window.open(`tel:${data[3]}`, '_blank');
-            });
-            
-            const emailText = document.getElementById('email-text');
-            emailText.setAttribute('class', 'clickable');
-            emailText.addEventListener('click', () => {
-                window.open(`mailto:${data[4]}`, '_blank');
-            });
+        
+        // Show mobile-specific instructions if on mobile
+        if (isMobile()) {
+            document.querySelector('.instructions').innerHTML += `
+                <div style="background: #e8f4fd; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                    <strong>📱 Mobile Detected:</strong> You can directly scan the QR code or tap "Open AR Viewer Directly" button.
+                </div>
+            `;
         }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', startCamera);
     </script>
 </body>
 </html>
