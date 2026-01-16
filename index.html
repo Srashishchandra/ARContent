@@ -1,19 +1,192 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>QRAnchor SDK – Step 1</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web AR Visiting Card</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <style>
+        #scanner-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #ar-view {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .scan-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 3px solid #00ff00;
+            border-radius: 10px;
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.7);
+        }
+        .visiting-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 300px;
+            margin: 20px auto;
+        }
+    </style>
 </head>
 <body>
+    <!-- QR Scanner View -->
+    <div id="scanner-container">
+        <video id="video"></video>
+        <div class="scan-box"></div>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
 
-<script type="module">
-  import { startQRTracking } from "index.js";
+    <!-- AR View (A-Frame) -->
+    <div id="ar-view">
+        <a-scene embedded>
+            <a-entity id="visiting-card-3d" position="0 0 -2">
+                <a-box position="0 0 0" width="1" height="0.6" depth="0.02" color="#FFFFFF">
+                    <a-text id="name-text" value="Name" position="0 0.2 0.02" align="center" color="#000000" width="2"></a-text>
+                    <a-text id="title-text" value="Title" position="0 0 0.02" align="center" color="#000000" width="2"></a-text>
+                    <a-text id="phone-text" value="Phone" position="-0.4 -0.2 0.02" align="center" color="#000000" width="0.8"></a-text>
+                    <a-text id="email-text" value="Email" position="0.4 -0.2 0.02" align="center" color="#000000" width="0.8"></a-text>
+                </a-box>
+            </a-entity>
+            <a-camera position="0 0 0"></a-camera>
+        </a-scene>
+    </div>
 
-  startQRTracking((qr) => {
-    console.log("QR FOUND");
-    console.log("ID:", qr.id);
-    console.log("Corners:", qr.corners);
-  });
-</script>
+    <script>
+        // DOM Elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const scannerContainer = document.getElementById('scanner-container');
+        const arView = document.getElementById('ar-view');
+        const ctx = canvas.getContext('2d');
 
+        // Start camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // Use back camera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                video.srcObject = stream;
+                video.play();
+                
+                // Start QR scanning
+                requestAnimationFrame(scanQR);
+            } catch (err) {
+                console.error('Camera error:', err);
+                alert('Camera access is required for this feature.');
+            }
+        }
+
+        // QR Scanning function
+        function scanQR() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // Draw video frame to canvas
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Scan for QR code
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'dontInvert',
+                });
+                
+                if (code) {
+                    // QR Code detected
+                    console.log('QR Data:', code.data);
+                    processQRData(code.data);
+                    
+                    // Draw bounding box
+                    drawQRBox(code.location);
+                }
+            }
+            
+            requestAnimationFrame(scanQR);
+        }
+
+        function drawQRBox(location) {
+            ctx.beginPath();
+            ctx.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
+            ctx.lineTo(location.topRightCorner.x, location.topRightCorner.y);
+            ctx.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
+            ctx.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
+            ctx.closePath();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#00ff00";
+            ctx.stroke();
+        }
+
+        function processQRData(qrData) {
+            try {
+                // Parse QR data (format: name|title|company|phone|email|website)
+                const data = qrData.split('|');
+                
+                if (data.length >= 5) {
+                    // Switch to AR view
+                    scannerContainer.style.display = 'none';
+                    arView.style.display = 'block';
+                    
+                    // Update AR content
+                    updateARContent(data);
+                    
+                    // Stop camera to save battery
+                    const stream = video.srcObject;
+                    const tracks = stream.getTracks();
+                    tracks.forEach(track => track.stop());
+                }
+            } catch (error) {
+                console.error('Error processing QR:', error);
+            }
+        }
+
+        function updateARContent(data) {
+            // Update A-Frame elements
+            document.getElementById('name-text').setAttribute('value', data[0]);
+            document.getElementById('title-text').setAttribute('value', `${data[1]} at ${data[2]}`);
+            document.getElementById('phone-text').setAttribute('value', `📞 ${data[3]}`);
+            document.getElementById('email-text').setAttribute('value', `✉️ ${data[4]}`);
+            
+            // Add clickable links
+            const phoneText = document.getElementById('phone-text');
+            phoneText.setAttribute('class', 'clickable');
+            phoneText.addEventListener('click', () => {
+                window.open(`tel:${data[3]}`, '_blank');
+            });
+            
+            const emailText = document.getElementById('email-text');
+            emailText.setAttribute('class', 'clickable');
+            emailText.addEventListener('click', () => {
+                window.open(`mailto:${data[4]}`, '_blank');
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', startCamera);
+    </script>
 </body>
 </html>
