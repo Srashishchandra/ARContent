@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR 3D Model Viewer</title>
+    <title>AR 3D Model Viewer - Markerless</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component/dist/aframe-environment-component.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -118,6 +119,24 @@
             z-index: 1001;
             font-size: 16px;
         }
+        
+        .ar-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            z-index: 1001;
+            display: none;
+        }
+        
+        .hint-content {
+            max-width: 500px;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -140,8 +159,10 @@
                 <li>Point the camera at the QR code above</li>
                 <li>Tap the notification/link that appears</li>
                 <li>Allow camera access when prompted</li>
-                <li>Point your camera at a flat surface to place the 3D model</li>
+                <li>Point your camera at a flat surface (floor, table, etc.)</li>
+                <li>Tap on the surface to place the 3D model</li>
                 <li>Move around to view the model from different angles</li>
+                <li>Pinch to zoom, rotate with two fingers</li>
             </ol>
         </div>
         
@@ -152,33 +173,76 @@
             <p><strong>Model URL:</strong> <span id="model-url">https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb</span></p>
             <p><strong>Format:</strong> GLB (Binary GL Transmission Format)</p>
             <p><strong>Features:</strong> Full 3D model with textures, materials, and animations</p>
+            <p><strong>AR Type:</strong> Markerless - works on any flat surface</p>
         </div>
     </div>
 
     <!-- AR Viewer (hidden by default) -->
     <div id="arViewer" class="ar-viewport">
         <button class="close-ar" onclick="closeARViewer()">Close AR</button>
-        <a-scene embedded arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
-            <!-- Marker-based AR -->
-            <a-marker type="barcode" value="69">
-                <a-entity
-                    gltf-model="https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb"
-                    scale="0.5 0.5 0.5"
-                    position="0 0 0"
-                    animation-mixer
-                    look-at="[gps-camera]">
-                </a-entity>
-            </a-marker>
+        <div class="ar-hint" id="arHint">
+            <div class="hint-content">
+                <h3>How to Place the Model</h3>
+                <p>Move your phone slowly to detect surfaces. Tap on any flat surface (floor, table) to place the 3D model.</p>
+                <p>Pinch to zoom • Rotate with two fingers</p>
+            </div>
+        </div>
+        
+        <a-scene 
+            vr-mode-ui="enabled: false"
+            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+            embedded
+            renderer="logarithmicDepthBuffer: true;"
+            gesture-detector>
             
-            <!-- Location-based AR fallback -->
-            <a-entity id="model" 
-                gltf-model="https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb"
-                gps-entity-place="latitude: 0; longitude: 0;"
-                scale="0.5 0.5 0.5"
-                animation-mixer>
+            <!-- Plane for placing objects -->
+            <a-entity id="cursor" cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
+            
+            <!-- Plane detection -->
+            <a-entity mindar-image-target="targetIndex: 0">
+                <a-plane 
+                    class="clickable"
+                    position="0 0 0"
+                    rotation="-90 0 0"
+                    width="1"
+                    height="1"
+                    material="color: #7BC8A4; opacity: 0.4; transparent: true"
+                    visible="false">
+                </a-plane>
             </a-entity>
             
-            <a-camera gps-camera rotation-reader></a-camera>
+            <!-- The 3D Model - will be placed when user taps -->
+            <a-entity id="modelContainer" position="0 0 0" scale="0.5 0.5 0.5">
+                <a-entity
+                    id="model"
+                    gltf-model="https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb"
+                    scale="1 1 1"
+                    position="0 0.5 0"
+                    animation-mixer
+                    gesture-handler="minScale: 0.25; maxScale: 4"
+                    shadow="cast: true"
+                    visible="false">
+                </a-entity>
+            </a-entity>
+            
+            <!-- Light -->
+            <a-entity light="type: ambient; color: #FFF; intensity: 0.8"></a-entity>
+            <a-entity light="type: directional; color: #FFF; intensity: 0.5" position="-1 2 1"></a-entity>
+            
+            <!-- Camera -->
+            <a-camera position="0 1.6 0" wasd-controls="enabled: false">
+                <a-cursor></a-cursor>
+            </a-camera>
+            
+            <!-- Ground for shadow -->
+            <a-circle 
+                id="ground"
+                radius="2" 
+                rotation="-90 0 0" 
+                position="0 -0.1 0"
+                material="shader: shadow; transparent: true; opacity: 0.5"
+                visible="false">
+            </a-circle>
         </a-scene>
     </div>
 
@@ -187,10 +251,7 @@
     
     <script>
         // Generate QR Code
-        const modelUrl = "https://static.wixstatic.com/3d/018211_a1f37957ac474262afc8e515acd8e705.glb";
         const currentUrl = window.location.href;
-        
-        // Use current page URL for QR code (or direct AR link)
         const qrData = currentUrl.includes('?ar=true') ? currentUrl : currentUrl + '?ar=true';
         
         QRCode.toCanvas(document.getElementById('qrcode'), qrData, {
@@ -201,23 +262,98 @@
                 dark: '#000000',
                 light: '#FFFFFF'
             }
-        }, function (error) {
-            if (error) console.error(error);
         });
         
         // Check if AR mode should open automatically
         if (window.location.search.includes('ar=true')) {
-            openARViewer();
+            setTimeout(openARViewer, 1000);
         }
         
+        let modelPlaced = false;
+        
         function openARViewer() {
-            document.getElementById('arViewer').style.display = 'block';
+            const arViewer = document.getElementById('arViewer');
+            arViewer.style.display = 'block';
             document.body.style.overflow = 'hidden';
+            
+            // Show hint
+            setTimeout(() => {
+                document.getElementById('arHint').style.display = 'block';
+            }, 2000);
+            
+            // Setup AR scene interactions
+            setupARInteractions();
         }
         
         function closeARViewer() {
             document.getElementById('arViewer').style.display = 'none';
             document.body.style.overflow = 'auto';
+            modelPlaced = false;
+            
+            // Remove query parameter
+            if (window.history.replaceState) {
+                const url = new URL(window.location);
+                url.searchParams.delete('ar');
+                window.history.replaceState({}, '', url);
+            }
+        }
+        
+        function setupARInteractions() {
+            const scene = document.querySelector('a-scene');
+            const model = document.getElementById('model');
+            const ground = document.getElementById('ground');
+            const hint = document.getElementById('arHint');
+            
+            // Wait for scene to load
+            scene.addEventListener('loaded', function() {
+                // Add tap to place functionality
+                scene.addEventListener('click', function(evt) {
+                    if (!modelPlaced && evt.detail.intersection) {
+                        const point = evt.detail.intersection.point;
+                        
+                        // Position model at the tapped point
+                        const modelContainer = document.getElementById('modelContainer');
+                        modelContainer.setAttribute('position', `${point.x} ${point.y + 0.1} ${point.z}`);
+                        
+                        // Show model
+                        model.setAttribute('visible', 'true');
+                        ground.setAttribute('visible', 'true');
+                        
+                        // Hide hint
+                        hint.style.display = 'none';
+                        
+                        modelPlaced = true;
+                        
+                        // Add animation
+                        modelContainer.setAttribute('animation', {
+                            property: 'scale',
+                            from: '0.1 0.1 0.1',
+                            to: '0.5 0.5 0.5',
+                            dur: 500,
+                            easing: 'easeOutElastic'
+                        });
+                    }
+                });
+                
+                // Handle model loading
+                model.addEventListener('model-loaded', function() {
+                    console.log('3D Model loaded successfully!');
+                    
+                    // Auto-rotate the model
+                    modelContainer.setAttribute('animation', {
+                        property: 'rotation',
+                        to: '0 360 0',
+                        dur: 20000,
+                        loop: true,
+                        easing: 'linear'
+                    });
+                });
+                
+                model.addEventListener('model-error', function() {
+                    console.error('Error loading 3D model');
+                    hint.innerHTML = '<p>Error loading 3D model. Please check your connection and refresh.</p>';
+                });
+            });
         }
         
         // Handle mobile detection
@@ -233,6 +369,11 @@
                 </div>
             `;
         }
+        
+        // Handle back button on mobile
+        window.addEventListener('popstate', function() {
+            closeARViewer();
+        });
     </script>
 </body>
 </html>
